@@ -3,150 +3,301 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IBEMS Secure Enterprise Center</title>
+    <title>IBEMS Enterprise</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        :root { --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --accent: #38bdf8; --danger: #f43f5e; --success: #10b981; --warning: #f59e0b; --purple: #a855f7; }
-        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 2rem; display: flex; flex-direction: column; align-items: center; margin: 0; }
-        
-        /* --- SECURE LOCK SCREEN STYLES --- */
-        #lockScreen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .lock-box { background: var(--card); padding: 3rem; border-radius: 12px; text-align: center; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.5); border: 1px solid #334155; }
-        .lock-box input { width: 100%; padding: 12px; margin: 15px 0; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: white; text-align: center; font-family: monospace; }
-        .error-msg { color: var(--danger); font-size: 0.9rem; margin-top: 10px; display: none; }
-        #dashboardContent { display: none; width: 100%; max-width: 1200px; padding: 2rem; box-sizing: border-box; }
 
-        /* --- DASHBOARD STYLES --- */
-        .header { text-align: center; margin-bottom: 2rem; }
-        h1 { color: var(--accent); margin: 0; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; width: 100%; }
-        .card { background: var(--card); padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.5); }
-        .card h2 { margin-top: 0; font-size: 1.2rem; color: #94a3b8; border-bottom: 1px solid #334155; padding-bottom: 10px; }
-        .data-point { display: flex; justify-content: space-between; font-size: 1.1rem; margin: 15px 0; align-items: center;}
-        .val { font-weight: bold; color: var(--success); }
-        .ai-val { font-weight: bold; color: var(--purple); }
-        button { background: var(--accent); color: black; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; width: 100%; }
-        button:hover { filter: brightness(1.2); }
-        input[type=range] { width: 100%; margin: 10px 0; cursor: pointer; }
-        .chart-container { position: relative; height: 250px; width: 100%; margin-top: 15px; }
+    <style>
+        /* --- 🌙 DARK THEME (DEFAULT) --- */
+        :root { 
+            --bg: #09090b; --card-bg: rgba(24, 24, 27, 0.7); --card-border: rgba(63, 63, 70, 0.4);
+            --text-main: #f4f4f5; --text-muted: #a1a1aa; --accent: #06b6d4; --accent-glow: rgba(6, 182, 212, 0.3);
+            --danger: #ef4444; --success: #10b981; --purple: #8b5cf6; --chart-grid: rgba(63, 63, 70, 0.3);
+            --input-bg: rgba(0,0,0,0.5);
+        }
+
+        /* --- ☀️ LIGHT THEME OVERRIDE --- */
+        body.light-mode {
+            --bg: #f0f2f5; --card-bg: rgba(248, 250, 252, 0.9); --card-border: rgba(226, 232, 240, 0.8);
+            --text-main: #1e293b; --text-muted: #64748b; --accent: #0284c7; 
+            --chart-grid: rgba(203, 213, 225, 0.5); --input-bg: rgba(241, 245, 249, 0.9);
+        }
+
+        body { 
+            font-family: 'Inter', sans-serif; background: var(--bg); 
+            background-image: radial-gradient(circle at top right, rgba(139, 92, 246, 0.1), transparent 40%),
+                              radial-gradient(circle at bottom left, rgba(6, 182, 212, 0.05), transparent 40%);
+            color: var(--text-main); padding: 2rem 1rem; display: flex; flex-direction: column; 
+            align-items: center; margin: 0; min-height: 100vh; transition: background 0.4s ease, color 0.4s ease;
+        }
+
+        .theme-toggle {
+            position: absolute; top: 20px; right: 20px; background: var(--card-bg); border: 1px solid var(--card-border);
+            color: var(--text-main); width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center;
+            justify-content: center; cursor: pointer; font-size: 1.2rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease; z-index: 10000; backdrop-filter: blur(10px);
+        }
+        .theme-toggle:hover { transform: scale(1.1); border-color: var(--accent); color: var(--accent); }
+        
+        #lockScreen { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(var(--bg), 0.85); backdrop-filter: blur(12px); 
+            z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: background 0.4s ease;
+        }
+        .lock-box { 
+            background: var(--card-bg); padding: 3rem; border-radius: 20px; text-align: center; 
+            border: 1px solid var(--card-border); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3);
+            max-width: 400px; width: 90%; transition: all 0.4s ease;
+        }
+        .lock-box i { font-size: 3rem; color: var(--accent); margin-bottom: 1rem; text-shadow: 0 0 15px var(--accent-glow); }
+        .lock-box input { 
+            width: 100%; padding: 14px; margin: 20px 0; border-radius: 8px; border: 1px solid var(--card-border); 
+            background: var(--input-bg); color: var(--text-main); text-align: center; font-family: monospace; letter-spacing: 2px; transition: 0.3s;
+        }
+        .lock-box input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 10px var(--accent-glow); }
+        .error-msg { color: var(--danger); font-size: 0.9rem; margin-top: 10px; display: none; font-weight: 500;}
+
+        #dashboardContent { display: none; width: 100%; max-width: 1200px; animation: fadeIn 0.8s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .header { text-align: center; margin-bottom: 3rem; position: relative; }
+        h1 { color: var(--text-main); margin: 0; font-size: 2.5rem; font-weight: 800; letter-spacing: -1px; transition: color 0.4s ease; }
+        .header p { color: var(--accent); font-weight: 500; letter-spacing: 1px; text-transform: uppercase; font-size: 0.9rem; }
+        
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; }
+        
+        .card { 
+            background: var(--card-bg); padding: 1.8rem; border-radius: 16px; 
+            border: 1px solid var(--card-border); backdrop-filter: blur(10px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); transition: transform 0.3s ease, border-color 0.3s ease, background 0.4s ease; 
+        }
+        .card:hover { transform: translateY(-5px); border-color: var(--accent); }
+        .card h2 { margin-top: 0; font-size: 1.1rem; color: var(--text-muted); border-bottom: 1px solid var(--card-border); padding-bottom: 12px; font-weight: 500; display: flex; align-items: center; gap: 10px; transition: color 0.4s ease;}
+        
+        .data-point { display: flex; justify-content: space-between; font-size: 1.1rem; margin: 18px 0; align-items: center;}
+        .data-point i { color: var(--text-muted); width: 25px; transition: color 0.4s ease; }
+        
+        /* THE TELEMETRY FLASH ANIMATION */
+        .val { font-weight: 700; color: var(--text-main); transition: color 0.4s ease; }
+        .val.flash-update { animation: textFlash 1s ease-out; }
+        @keyframes textFlash { 
+            0% { color: var(--success); text-shadow: 0 0 15px var(--success); transform: scale(1.05); } 
+            100% { color: var(--text-main); text-shadow: none; transform: scale(1); } 
+        }
+
+        /* THE CRITICAL BREACH PULSE ANIMATION */
+        .alarm-card { animation: borderAlarm 2s infinite !important; }
+        @keyframes borderAlarm {
+            0% { border-color: var(--card-border); box-shadow: none; }
+            50% { border-color: var(--danger); box-shadow: 0 0 20px rgba(239, 68, 68, 0.4); }
+            100% { border-color: var(--card-border); box-shadow: none; }
+        }
+        
+        .status-badge { background: rgba(16, 185, 129, 0.1); color: var(--success); padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 700; border: 1px solid rgba(16, 185, 129, 0.2); display: flex; align-items: center; gap: 6px;}
+        .pulse { width: 8px; height: 8px; background: var(--success); border-radius: 50%; box-shadow: 0 0 10px var(--success); animation: pulse-anim 1.5s infinite; }
+        @keyframes pulse-anim { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(1.2); } 100% { opacity: 1; transform: scale(1); } }
+
+        .action-btn { background: var(--accent); color: #fff; border: none; padding: 14px 24px; border-radius: 8px; cursor: pointer; font-weight: 700; transition: 0.2s; width: 100%; text-transform: uppercase; letter-spacing: 1px; }
+        .action-btn:hover { filter: brightness(1.1); box-shadow: 0 0 15px var(--accent-glow); }
+        
+        input[type=range] { -webkit-appearance: none; width: 100%; margin: 15px 0; background: transparent; cursor: pointer; }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 6px; background: var(--card-border); border-radius: 5px; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 18px; width: 18px; border-radius: 50%; background: var(--accent); margin-top: -6px; box-shadow: 0 0 10px var(--accent-glow); transition: 0.2s; }
+        input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+        
+        .chart-container { position: relative; height: 280px; width: 100%; margin-top: 15px; }
+
+        #toastContainer { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 10px; z-index: 10000; }
+        .toast { background: var(--card-bg); border: 1px solid var(--card-border); color: var(--text-main); padding: 12px 24px; border-radius: 30px; font-weight: 500; font-size: 0.9rem; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.2); backdrop-filter: blur(10px); animation: slideUp 0.3s ease, fadeOut 0.5s ease 2.5s forwards; display: flex; align-items: center; gap: 8px; }
+        .toast i { color: var(--accent); }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes fadeOut { to { opacity: 0; visibility: hidden; } }
+        .heartbeat { font-size: 0.8rem; color: var(--text-muted); margin-top: 8px; font-style: italic; font-weight: normal; }
     </style>
 </head>
 <body>
 
+    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle Light/Dark Mode">
+        <i id="themeIcon" class="fa-solid fa-sun"></i>
+    </button>
+
     <div id="lockScreen">
         <div class="lock-box">
-            <h2 style="color: var(--accent); margin-top: 0;">IBEMS Secure Access</h2>
-            <p style="color: #94a3b8; font-size: 0.9rem;">Authentication Required</p>
-            <input type="password" id="authKey" placeholder="Enter System Passkey">
-            <button onclick="attemptLogin()">DECRYPT & CONNECT</button>
-            <div id="loginError" class="error-msg">Access Denied: Invalid Passkey</div>
+            <i class="fa-solid fa-fingerprint"></i>
+            <h2>System Auth</h2>
+            <p style="color: var(--text-muted); font-size: 0.9rem;">256-bit Encrypted Vault</p>
+            <input type="password" id="authKey" placeholder="Enter Root Passkey" autocomplete="off">
+            <button class="action-btn" onclick="attemptLogin()">Decrypt Stream</button>
+            <div id="loginError" class="error-msg"><i class="fa-solid fa-triangle-exclamation"></i> Invalid Passkey</div>
         </div>
     </div>
 
     <div id="dashboardContent">
         <div class="header">
-            <h1>IBEMS Enterprise Dashboard</h1>
-            <p>Secure Telemetry & AI Analytics</p>
+            <h1>IBEMS Terminal Group 7</h1>
+            <p><i class="fa-solid fa-satellite-dish"></i> Live Global Telemetry</p>
         </div>
 
         <div class="grid">
             <div class="card" style="grid-column: 1 / -1;">
-                <h2>Live Climate Analytics</h2>
+                <h2><i class="fa-solid fa-chart-area"></i> Live Climate Matrix</h2>
                 <div class="chart-container"><canvas id="climateChart"></canvas></div>
             </div>
 
-            <div class="card" style="border: 1px solid var(--purple);">
-                <h2 style="color: var(--purple);">Predictive AI Engine</h2>
-                <div class="data-point"><span>System Status:</span> <span class="ai-val" id="aiStatus">Analyzing...</span></div>
-                <div class="data-point"><span>Trajectory:</span> <span class="ai-val" id="aiTrajectory">--</span></div>
-                <div class="data-point"><span>Est. Time to AC:</span> <span class="ai-val" id="aiMinutes">-- mins</span></div>
+            <div class="card" style="border-top: 3px solid var(--purple);">
+                <h2><i class="fa-solid fa-brain" style="color: var(--purple);"></i> AI Engine</h2>
+                <div class="data-point"><span><i class="fa-solid fa-microchip"></i> Status</span> <span class="val" id="aiStatus" style="color: var(--purple);">Analyzing...</span></div>
+                <div class="data-point"><span><i class="fa-solid fa-route"></i> Trajectory</span> <span class="val" id="aiTrajectory" style="font-size: 0.95rem; text-align: right;">--</span></div>
+                <div class="data-point"><span><i class="fa-regular fa-clock"></i> Est. Breach</span> <span class="val" id="aiMinutes">-- mins</span></div>
+            </div>
+
+            <div class="card" id="envCard">
+                <h2><i class="fa-solid fa-leaf"></i> Environment</h2>
+                <div class="data-point"><span><i class="fa-solid fa-temperature-half"></i> Temperature</span> <span class="val" id="temp" style="color: var(--danger);">-- °C</span></div>
+                <div class="data-point"><span><i class="fa-solid fa-droplet"></i> Humidity</span> <span class="val" id="hum" style="color: var(--accent);">-- %</span></div>
+                <div class="data-point"><span><i class="fa-solid fa-users"></i> Occupancy</span> <span class="val" id="occ">--</span></div>
             </div>
 
             <div class="card">
-                <h2>Environment Data</h2>
-                <div class="data-point"><span>Temperature:</span> <span class="val" id="temp">-- °C</span></div>
-                <div class="data-point"><span>Humidity:</span> <span class="val" id="hum">-- %</span></div>
-                <div class="data-point"><span>Room Status:</span> <span class="val" id="occ">--</span></div>
-            </div>
-
-            <div class="card">
-                <h2>Hardware Status</h2>
-                <div class="data-point"><span>Room Lights:</span> <span class="val" id="light">--</span></div>
-                <div class="data-point"><span>AC Motor:</span> <span class="val" id="ac">--</span></div>
-                <div class="data-point" style="margin-top: 25px; border-top: 1px solid #334155; padding-top: 15px;">
-                    <span>Cloud Connection:</span> <span class="val" id="mode" style="color: var(--success);">SECURE (ENCRYPTED)</span>
+                <h2><i class="fa-solid fa-server"></i> Edge Hardware</h2>
+                <div class="data-point"><span><i class="fa-regular fa-lightbulb"></i> Lights</span> <span class="val" id="light">--</span></div>
+                <div class="data-point"><span><i class="fa-solid fa-fan"></i> AC Motor</span> <span class="val" id="ac">--</span></div>
+                <div class="data-point" style="margin-top: 25px; border-top: 1px solid var(--card-border); padding-top: 20px;">
+                    <div>
+                        <span><i class="fa-solid fa-shield-halved"></i> Connection</span>
+                        <div class="heartbeat" id="lastSyncTime">Last sync: Waiting...</div>
+                    </div>
+                    <div class="status-badge" id="mode"><div class="pulse"></div> SECURE</div>
                 </div>
             </div>
 
-            <div class="card">
-                <h2>Dynamic AI Configuration</h2>
-                <p style="color: #94a3b8; font-size: 0.9rem;">Adjust the temperature at which the AC automatically activates.</p>
+            <div class="card" style="border-top: 3px solid var(--accent);">
+                <h2><i class="fa-solid fa-sliders" style="color: var(--accent);"></i> Cloud Config</h2>
+                <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 20px;">Adjust the remote threshold parameter. The AI engine will recalculate automatically.</p>
                 <div class="data-point">
-                    <span>AC Threshold:</span> 
-                    <span class="val" id="thresholdDisplay" style="color: var(--accent);">30.0 °C</span>
+                    <span style="font-weight: 500;">Target Temp:</span> 
+                    <span class="val" id="thresholdDisplay" style="color: var(--accent); font-size: 1.3rem;">30.0 °C</span>
                 </div>
                 <input type="range" id="thresholdSlider" min="20" max="40" step="0.5" value="30" oninput="updateThresholdDisplay(this.value)" onchange="pushThresholdToCloud(this.value)">
             </div>
         </div>
     </div>
 
+    <div id="toastContainer"></div>
+
     <script>
         const baseUrl = "https://ibems-cloud-group7-default-rtdb.firebaseio.com/";
         let secureToken = ""; 
         let pollInterval;
+        let lastSyncDate = new Date(); 
         
         let climateChart;
         const maxDataPoints = 15;
         let timeLabels = [], tempData = [], humData = [];
 
-        // --- AUTHENTICATION LOGIC ---
+        // Tracks previous values to know WHEN to trigger the flash animation
+        let prevData = { temp: null, hum: null, occ: null, light: null, ac: null };
+
+        function showToast(message, iconClass = "fa-solid fa-cloud-arrow-up") {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerHTML = `<i class="${iconClass}"></i> ${message}`;
+            container.appendChild(toast);
+            setTimeout(() => { toast.remove(); }, 3000);
+        }
+
+        setInterval(() => {
+            if(document.getElementById('dashboardContent').style.display === 'block') {
+                const secondsPast = Math.floor((new Date() - lastSyncDate) / 1000);
+                document.getElementById('lastSyncTime').innerText = `Last sync: ${secondsPast === 0 ? 'Just now' : secondsPast + 's ago'}`;
+            }
+        }, 1000);
+
+        function toggleTheme() {
+            const body = document.body;
+            const icon = document.getElementById('themeIcon');
+            body.classList.toggle('light-mode');
+            
+            if (body.classList.contains('light-mode')) {
+                icon.classList.replace('fa-sun', 'fa-moon');
+                Chart.defaults.color = '#64748b'; 
+            } else {
+                icon.classList.replace('fa-moon', 'fa-sun');
+                Chart.defaults.color = '#a1a1aa'; 
+            }
+
+            if (climateChart) {
+                const gridColor = getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim();
+                climateChart.options.scales.x.grid.color = gridColor;
+                climateChart.options.scales.y.grid.color = gridColor;
+                climateChart.update();
+            }
+        }
+
         async function attemptLogin() {
             const keyInput = document.getElementById('authKey').value.trim();
             if (!keyInput) return;
-
             document.getElementById('loginError').style.display = 'none';
             
             try {
-                // Test the key against the database
                 const testRes = await fetch(`${baseUrl}settings.json?auth=${keyInput}`);
                 if (testRes.status === 200) {
-                    // Success! Unlock the UI
                     secureToken = keyInput;
                     document.getElementById('lockScreen').style.display = 'none';
                     document.getElementById('dashboardContent').style.display = 'block';
-                    
-                    setupChart();
-                    fetchCloudData(); 
-                    pollInterval = setInterval(fetchCloudData, 5000); 
+                    setupChart(); fetchCloudData(); pollInterval = setInterval(fetchCloudData, 5000); 
+                    showToast("Decrypted Successfully", "fa-solid fa-unlock-keyhole");
                 } else {
                     document.getElementById('loginError').style.display = 'block';
                 }
             } catch (error) {
-                document.getElementById('loginError').innerText = "Network Error. Check connection.";
+                document.getElementById('loginError').innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Network Error';
                 document.getElementById('loginError').style.display = 'block';
             }
         }
 
-        // --- GRAPH INITIALIZATION ---
+        // --- NEW: FUNCTION TO ANIMATE NUMBERS THAT CHANGE ---
+        function updateAndFlash(elementId, newValue, oldTrackerKey) {
+            const el = document.getElementById(elementId);
+            if (prevData[oldTrackerKey] !== newValue && prevData[oldTrackerKey] !== null) {
+                el.innerText = newValue;
+                // Remove and re-add class to re-trigger the CSS animation
+                el.classList.remove('flash-update');
+                void el.offsetWidth; // Force a DOM reflow magic trick
+                el.classList.add('flash-update');
+            } else {
+                el.innerText = newValue;
+            }
+            prevData[oldTrackerKey] = newValue;
+        }
+
         function setupChart() {
+            Chart.defaults.color = document.body.classList.contains('light-mode') ? '#64748b' : '#a1a1aa';
+            Chart.defaults.font.family = "'Inter', sans-serif";
+            const gridColor = getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim();
+            
             const ctx = document.getElementById('climateChart').getContext('2d');
             climateChart = new Chart(ctx, {
                 type: 'line',
                 data: { labels: timeLabels, datasets: [
-                        { label: 'Temperature (°C)', borderColor: '#f43f5e', backgroundColor: 'rgba(244, 63, 94, 0.1)', data: tempData, tension: 0.4, fill: true, yAxisID: 'y' },
-                        { label: 'Humidity (%)', borderColor: '#38bdf8', backgroundColor: 'rgba(56, 189, 248, 0.1)', data: humData, tension: 0.4, fill: true, yAxisID: 'y1' }
+                        { label: 'Temp (°C)', borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', data: tempData, tension: 0.4, fill: true, yAxisID: 'y', pointBackgroundColor: '#ef4444', borderWidth: 2 },
+                        { label: 'Humidity (%)', borderColor: '#0284c7', backgroundColor: 'rgba(2, 132, 199, 0.1)', data: humData, tension: 0.4, fill: true, yAxisID: 'y1', pointBackgroundColor: '#0284c7', borderWidth: 2 }
                 ]},
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#f8fafc' } } },
+                options: { 
+                    responsive: true, maintainAspectRatio: false, 
+                    plugins: { legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 8 } } },
                     scales: {
-                        x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
-                        y: { type: 'linear', display: true, position: 'left', ticks: { color: '#f43f5e' }, grid: { color: '#334155' } },
-                        y1: { type: 'linear', display: true, position: 'right', ticks: { color: '#38bdf8' }, grid: { drawOnChartArea: false } }
+                        x: { grid: { color: gridColor } },
+                        y: { type: 'linear', display: true, position: 'left', grid: { color: gridColor } },
+                        y1: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false } }
                     }
                 }
             });
         }
 
-        // --- SECURE FETCH DATA ---
         async function fetchCloudData() {
             try {
                 const [resData, resSettings, resAi] = await Promise.all([
@@ -155,16 +306,26 @@
                     fetch(`${baseUrl}ai_data.json?auth=${secureToken}`)
                 ]);
                 
-                const data = await resData.json();
-                const settings = await resSettings.json();
-                const aiData = await resAi.json();
+                const data = await resData.json(); const settings = await resSettings.json(); const aiData = await resAi.json();
                 
                 if(data && settings) {
-                    document.getElementById('temp').innerText = data.temperature + " °C";
-                    document.getElementById('hum').innerText = data.humidity + " %";
-                    document.getElementById('occ').innerText = data.occupancy;
-                    document.getElementById('light').innerText = data.lights;
-                    document.getElementById('ac').innerText = data.ac_motor;
+                    const currentTemp = parseFloat(data.temperature);
+                    const currentTarget = parseFloat(settings.temp_threshold);
+
+                    // 1. Update text with Flash animations if they changed
+                    updateAndFlash('temp', currentTemp.toFixed(1) + " °C", 'temp');
+                    updateAndFlash('hum', parseFloat(data.humidity).toFixed(1) + " %", 'hum');
+                    updateAndFlash('occ', data.occupancy, 'occ');
+                    updateAndFlash('light', data.lights, 'light');
+                    updateAndFlash('ac', data.ac_motor, 'ac');
+
+                    // 2. Critical Breach Logic (Make the card pulse red)
+                    const envCard = document.getElementById('envCard');
+                    if (currentTemp >= currentTarget) {
+                        envCard.classList.add('alarm-card');
+                    } else {
+                        envCard.classList.remove('alarm-card');
+                    }
 
                     const now = new Date();
                     const timeString = now.getHours() + ":" + now.getMinutes().toString().padStart(2, '0') + ":" + now.getSeconds().toString().padStart(2, '0');
@@ -172,6 +333,8 @@
                     
                     timeLabels.push(timeString); tempData.push(data.temperature); humData.push(data.humidity);
                     climateChart.update();
+                    
+                    lastSyncDate = new Date();
                 }
 
                 if(aiData) {
@@ -179,19 +342,31 @@
                     document.getElementById('aiTrajectory').innerText = aiData.trajectory || "--";
                     document.getElementById('aiMinutes').innerText = aiData.minutes_remaining > 0 ? aiData.minutes_remaining + " mins" : "--";
                 }
-            } catch (error) {
-                console.error("Encrypted Sync Failed");
+            } catch (error) { 
+                console.error("Sync Failed"); 
+                document.getElementById('lastSyncTime').innerText = "Connection lost. Retrying...";
             }
         }
 
         function updateThresholdDisplay(val) { document.getElementById('thresholdDisplay').innerText = parseFloat(val).toFixed(1) + " °C"; }
-
+        
         async function pushThresholdToCloud(val) {
-            try {
-                await fetch(`${baseUrl}settings/temp_threshold.json?auth=${secureToken}`, {
+            showToast("Syncing command to Cloud...");
+            try { 
+                await fetch(`${baseUrl}settings/temp_threshold.json?auth=${secureToken}`, { 
                     method: 'PUT', body: JSON.stringify(parseFloat(val)), headers: { 'Content-Type': 'application/json' }
-                });
-            } catch (error) { console.error("Failed to push secure setting."); }
+                }); 
+                setTimeout(() => showToast(`Target locked at ${val}°C`, "fa-solid fa-check"), 800);
+                
+                // Instantly re-evaluate the alarm card locally so the user feels immediate feedback
+                const currentTemp = parseFloat(document.getElementById('temp').innerText);
+                if (currentTemp >= parseFloat(val)) {
+                    document.getElementById('envCard').classList.add('alarm-card');
+                } else {
+                    document.getElementById('envCard').classList.remove('alarm-card');
+                }
+            } 
+            catch (error) { showToast("Failed to sync setting", "fa-solid fa-circle-xmark"); }
         }
     </script>
 </body>
