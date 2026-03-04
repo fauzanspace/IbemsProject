@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IBEMS Secure Enterprise Center</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --accent: #38bdf8; --danger: #f43f5e; --success: #10b981; --warning: #f59e0b; --purple: #a855f7; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 2rem; display: flex; flex-direction: column; align-items: center; margin: 0; }
+        
+        /* --- SECURE LOCK SCREEN STYLES --- */
+        #lockScreen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .lock-box { background: var(--card); padding: 3rem; border-radius: 12px; text-align: center; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.5); border: 1px solid #334155; }
+        .lock-box input { width: 100%; padding: 12px; margin: 15px 0; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: white; text-align: center; font-family: monospace; }
+        .error-msg { color: var(--danger); font-size: 0.9rem; margin-top: 10px; display: none; }
+        #dashboardContent { display: none; width: 100%; max-width: 1200px; padding: 2rem; box-sizing: border-box; }
+
+        /* --- DASHBOARD STYLES --- */
+        .header { text-align: center; margin-bottom: 2rem; }
+        h1 { color: var(--accent); margin: 0; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; width: 100%; }
+        .card { background: var(--card); padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.5); }
+        .card h2 { margin-top: 0; font-size: 1.2rem; color: #94a3b8; border-bottom: 1px solid #334155; padding-bottom: 10px; }
+        .data-point { display: flex; justify-content: space-between; font-size: 1.1rem; margin: 15px 0; align-items: center;}
+        .val { font-weight: bold; color: var(--success); }
+        .ai-val { font-weight: bold; color: var(--purple); }
+        button { background: var(--accent); color: black; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; width: 100%; }
+        button:hover { filter: brightness(1.2); }
+        input[type=range] { width: 100%; margin: 10px 0; cursor: pointer; }
+        .chart-container { position: relative; height: 250px; width: 100%; margin-top: 15px; }
+    </style>
+</head>
+<body>
+
+    <div id="lockScreen">
+        <div class="lock-box">
+            <h2 style="color: var(--accent); margin-top: 0;">IBEMS Secure Access</h2>
+            <p style="color: #94a3b8; font-size: 0.9rem;">Authentication Required</p>
+            <input type="password" id="authKey" placeholder="Enter System Passkey">
+            <button onclick="attemptLogin()">DECRYPT & CONNECT</button>
+            <div id="loginError" class="error-msg">Access Denied: Invalid Passkey</div>
+        </div>
+    </div>
+
+    <div id="dashboardContent">
+        <div class="header">
+            <h1>IBEMS Enterprise Dashboard</h1>
+            <p>Secure Telemetry & AI Analytics</p>
+        </div>
+
+        <div class="grid">
+            <div class="card" style="grid-column: 1 / -1;">
+                <h2>Live Climate Analytics</h2>
+                <div class="chart-container"><canvas id="climateChart"></canvas></div>
+            </div>
+
+            <div class="card" style="border: 1px solid var(--purple);">
+                <h2 style="color: var(--purple);">Predictive AI Engine</h2>
+                <div class="data-point"><span>System Status:</span> <span class="ai-val" id="aiStatus">Analyzing...</span></div>
+                <div class="data-point"><span>Trajectory:</span> <span class="ai-val" id="aiTrajectory">--</span></div>
+                <div class="data-point"><span>Est. Time to AC:</span> <span class="ai-val" id="aiMinutes">-- mins</span></div>
+            </div>
+
+            <div class="card">
+                <h2>Environment Data</h2>
+                <div class="data-point"><span>Temperature:</span> <span class="val" id="temp">-- °C</span></div>
+                <div class="data-point"><span>Humidity:</span> <span class="val" id="hum">-- %</span></div>
+                <div class="data-point"><span>Room Status:</span> <span class="val" id="occ">--</span></div>
+            </div>
+
+            <div class="card">
+                <h2>Hardware Status</h2>
+                <div class="data-point"><span>Room Lights:</span> <span class="val" id="light">--</span></div>
+                <div class="data-point"><span>AC Motor:</span> <span class="val" id="ac">--</span></div>
+                <div class="data-point" style="margin-top: 25px; border-top: 1px solid #334155; padding-top: 15px;">
+                    <span>Cloud Connection:</span> <span class="val" id="mode" style="color: var(--success);">SECURE (ENCRYPTED)</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Dynamic AI Configuration</h2>
+                <p style="color: #94a3b8; font-size: 0.9rem;">Adjust the temperature at which the AC automatically activates.</p>
+                <div class="data-point">
+                    <span>AC Threshold:</span> 
+                    <span class="val" id="thresholdDisplay" style="color: var(--accent);">30.0 °C</span>
+                </div>
+                <input type="range" id="thresholdSlider" min="20" max="40" step="0.5" value="30" oninput="updateThresholdDisplay(this.value)" onchange="pushThresholdToCloud(this.value)">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const baseUrl = "https://ibems-cloud-group7-default-rtdb.firebaseio.com/";
+        let secureToken = ""; 
+        let pollInterval;
+        
+        let climateChart;
+        const maxDataPoints = 15;
+        let timeLabels = [], tempData = [], humData = [];
+
+        // --- AUTHENTICATION LOGIC ---
+        async function attemptLogin() {
+            const keyInput = document.getElementById('authKey').value.trim();
+            if (!keyInput) return;
+
+            document.getElementById('loginError').style.display = 'none';
+            
+            try {
+                // Test the key against the database
+                const testRes = await fetch(`${baseUrl}settings.json?auth=${keyInput}`);
+                if (testRes.status === 200) {
+                    // Success! Unlock the UI
+                    secureToken = keyInput;
+                    document.getElementById('lockScreen').style.display = 'none';
+                    document.getElementById('dashboardContent').style.display = 'block';
+                    
+                    setupChart();
+                    fetchCloudData(); 
+                    pollInterval = setInterval(fetchCloudData, 5000); 
+                } else {
+                    document.getElementById('loginError').style.display = 'block';
+                }
+            } catch (error) {
+                document.getElementById('loginError').innerText = "Network Error. Check connection.";
+                document.getElementById('loginError').style.display = 'block';
+            }
+        }
+
+        // --- GRAPH INITIALIZATION ---
+        function setupChart() {
+            const ctx = document.getElementById('climateChart').getContext('2d');
+            climateChart = new Chart(ctx, {
+                type: 'line',
+                data: { labels: timeLabels, datasets: [
+                        { label: 'Temperature (°C)', borderColor: '#f43f5e', backgroundColor: 'rgba(244, 63, 94, 0.1)', data: tempData, tension: 0.4, fill: true, yAxisID: 'y' },
+                        { label: 'Humidity (%)', borderColor: '#38bdf8', backgroundColor: 'rgba(56, 189, 248, 0.1)', data: humData, tension: 0.4, fill: true, yAxisID: 'y1' }
+                ]},
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#f8fafc' } } },
+                    scales: {
+                        x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+                        y: { type: 'linear', display: true, position: 'left', ticks: { color: '#f43f5e' }, grid: { color: '#334155' } },
+                        y1: { type: 'linear', display: true, position: 'right', ticks: { color: '#38bdf8' }, grid: { drawOnChartArea: false } }
+                    }
+                }
+            });
+        }
+
+        // --- SECURE FETCH DATA ---
+        async function fetchCloudData() {
+            try {
+                const [resData, resSettings, resAi] = await Promise.all([
+                    fetch(`${baseUrl}room_data.json?auth=${secureToken}`),
+                    fetch(`${baseUrl}settings.json?auth=${secureToken}`),
+                    fetch(`${baseUrl}ai_data.json?auth=${secureToken}`)
+                ]);
+                
+                const data = await resData.json();
+                const settings = await resSettings.json();
+                const aiData = await resAi.json();
+                
+                if(data && settings) {
+                    document.getElementById('temp').innerText = data.temperature + " °C";
+                    document.getElementById('hum').innerText = data.humidity + " %";
+                    document.getElementById('occ').innerText = data.occupancy;
+                    document.getElementById('light').innerText = data.lights;
+                    document.getElementById('ac').innerText = data.ac_motor;
+
+                    const now = new Date();
+                    const timeString = now.getHours() + ":" + now.getMinutes().toString().padStart(2, '0') + ":" + now.getSeconds().toString().padStart(2, '0');
+                    if (timeLabels.length > maxDataPoints) { timeLabels.shift(); tempData.shift(); humData.shift(); }
+                    
+                    timeLabels.push(timeString); tempData.push(data.temperature); humData.push(data.humidity);
+                    climateChart.update();
+                }
+
+                if(aiData) {
+                    document.getElementById('aiStatus').innerText = aiData.status || "Analyzing...";
+                    document.getElementById('aiTrajectory').innerText = aiData.trajectory || "--";
+                    document.getElementById('aiMinutes').innerText = aiData.minutes_remaining > 0 ? aiData.minutes_remaining + " mins" : "--";
+                }
+            } catch (error) {
+                console.error("Encrypted Sync Failed");
+            }
+        }
+
+        function updateThresholdDisplay(val) { document.getElementById('thresholdDisplay').innerText = parseFloat(val).toFixed(1) + " °C"; }
+
+        async function pushThresholdToCloud(val) {
+            try {
+                await fetch(`${baseUrl}settings/temp_threshold.json?auth=${secureToken}`, {
+                    method: 'PUT', body: JSON.stringify(parseFloat(val)), headers: { 'Content-Type': 'application/json' }
+                });
+            } catch (error) { console.error("Failed to push secure setting."); }
+        }
+    </script>
+</body>
+</html>
