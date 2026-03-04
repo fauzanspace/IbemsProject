@@ -41,6 +41,14 @@
         }
         .theme-toggle:hover { transform: scale(1.1); border-color: var(--accent); color: var(--accent); }
         
+        .mic-btn { right: 80px; background: var(--purple); color: #fff; border-color: var(--purple); }
+        .listening { animation: micPulse 1.5s infinite; background: var(--danger) !important; border-color: var(--danger) !important; }
+        @keyframes micPulse { 
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 
+            70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); } 
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } 
+        }
+
         #lockScreen { 
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
             background: rgba(var(--bg), 0.85); backdrop-filter: blur(12px); 
@@ -122,7 +130,9 @@
     <button class="theme-toggle" onclick="toggleTheme()" title="Toggle Light/Dark Mode">
         <i id="themeIcon" class="fa-solid fa-sun"></i>
     </button>
-
+    <button class="theme-toggle mic-btn" id="micBtn" onclick="toggleListening()" title="Voice Command">
+        <i class="fa-solid fa-microphone"></i>
+    </button>
     <div id="lockScreen">
         <div class="lock-box">
             <i class="fa-solid fa-fingerprint"></i>
@@ -182,6 +192,21 @@
                 </div>
                 <input type="range" id="thresholdSlider" min="20" max="40" step="0.5" value="30" oninput="updateThresholdDisplay(this.value)" onchange="pushThresholdToCloud(this.value)">
             </div>
+
+            <div class="card" style="border-top: 3px solid var(--success);">
+                <h2><i class="fa-solid fa-chart-line" style="color: var(--success);"></i> Financial Impact</h2>
+                <div class="data-point">
+                    <span><i class="fa-solid fa-bolt"></i> Power Prevented</span> 
+                    <span class="val" id="kwhVal" style="color: var(--success); font-family: monospace; font-size: 1.2rem;">4.2500 kWh</span>
+                </div>
+                <div class="data-point">
+                    <span><i class="fa-solid fa-coins"></i> Est. Savings (Daily)</span> 
+                    <span class="val" id="cedisVal" style="color: var(--success); font-family: monospace; font-size: 1.2rem;">₵ 5.10</span>
+                </div>
+                <p style="color: var(--text-muted); font-size: 0.8rem; margin-top: 15px; border-top: 1px solid var(--card-border); padding-top: 10px;">
+                    *Predictive model assumes 1.5kW AC load at ₵1.20/kWh.
+                </p>
+            </div>
         </div>
     </div>
 
@@ -197,8 +222,11 @@
         const maxDataPoints = 15;
         let timeLabels = [], tempData = [], humData = [];
 
-        // Tracks previous values to know WHEN to trigger the flash animation
         let prevData = { temp: null, hum: null, occ: null, light: null, ac: null };
+        
+        // --- 🎙️ BULLETPROOF VOICE ENGINE VARIABLES ---
+        let voiceCooldownUntil = 0; // Uses timestamps instead of a boolean trap
+        let currentSpeech = null;   // Global variable to prevent garbage collection
 
         function showToast(message, iconClass = "fa-solid fa-cloud-arrow-up") {
             const container = document.getElementById('toastContainer');
@@ -250,6 +278,9 @@
                     document.getElementById('dashboardContent').style.display = 'block';
                     setupChart(); fetchCloudData(); pollInterval = setInterval(fetchCloudData, 5000); 
                     showToast("Decrypted Successfully", "fa-solid fa-unlock-keyhole");
+                    
+                    // Trigger greeting WITH override so it speaks immediately
+                    triggerVoice("Terminal unlocked. Live telemetry established.", true);
                 } else {
                     document.getElementById('loginError').style.display = 'block';
                 }
@@ -259,14 +290,49 @@
             }
         }
 
-        // --- NEW: FUNCTION TO ANIMATE NUMBERS THAT CHANGE ---
+        // --- 🎙️ BULLETPROOF VOICE ENGINE LOGIC ---
+        // --- 🎙️ BULLETPROOF VOICE ENGINE LOGIC (UPDATED) ---
+        function triggerVoice(textMessage, forceOverride = false) {
+            if (!('speechSynthesis' in window)) return;
+
+            const now = Date.now();
+            
+            // 1. Check if the lock is active. If so, ignore the automated alert.
+            if (!forceOverride && now < voiceCooldownUntil) {
+                return; 
+            }
+
+            // 2. THE FIX: Immediately lock the system for 60 seconds BEFORE it opens its mouth.
+            // This stops the 5-second database fetch from re-triggering the alarm.
+            if (!forceOverride) {
+                voiceCooldownUntil = now + 60000; 
+            }
+
+            // 3. Clear the throat
+            window.speechSynthesis.cancel();
+
+            // 4. Prepare the speech
+            currentSpeech = new SpeechSynthesisUtterance(textMessage);
+            currentSpeech.rate = 0.9;
+            currentSpeech.pitch = 1.0; 
+
+            // 5. Failsafe: If the browser audio crashes, release the lock early
+            currentSpeech.onerror = function(event) {
+                console.warn("Voice engine reset due to browser error.");
+                window.speechSynthesis.cancel();
+                voiceCooldownUntil = 0; 
+            };
+            
+            // 6. Speak!
+            window.speechSynthesis.speak(currentSpeech);
+        }
+
         function updateAndFlash(elementId, newValue, oldTrackerKey) {
             const el = document.getElementById(elementId);
             if (prevData[oldTrackerKey] !== newValue && prevData[oldTrackerKey] !== null) {
                 el.innerText = newValue;
-                // Remove and re-add class to re-trigger the CSS animation
                 el.classList.remove('flash-update');
-                void el.offsetWidth; // Force a DOM reflow magic trick
+                void el.offsetWidth; 
                 el.classList.add('flash-update');
             } else {
                 el.innerText = newValue;
@@ -312,17 +378,18 @@
                     const currentTemp = parseFloat(data.temperature);
                     const currentTarget = parseFloat(settings.temp_threshold);
 
-                    // 1. Update text with Flash animations if they changed
                     updateAndFlash('temp', currentTemp.toFixed(1) + " °C", 'temp');
                     updateAndFlash('hum', parseFloat(data.humidity).toFixed(1) + " %", 'hum');
                     updateAndFlash('occ', data.occupancy, 'occ');
                     updateAndFlash('light', data.lights, 'light');
                     updateAndFlash('ac', data.ac_motor, 'ac');
 
-                    // 2. Critical Breach Logic (Make the card pulse red)
+                    // --- CRITICAL BREACH LOGIC WITH AUTOMATED VOICE ---
                     const envCard = document.getElementById('envCard');
                     if (currentTemp >= currentTarget) {
                         envCard.classList.add('alarm-card');
+                        // No override true here: this will obey the 30-second cooldown so it doesn't spam you
+                        triggerVoice(`Warning. Critical threshold breached. Current temperature is ${currentTemp.toFixed(1)} degrees.`);
                     } else {
                         envCard.classList.remove('alarm-card');
                     }
@@ -358,15 +425,89 @@
                 }); 
                 setTimeout(() => showToast(`Target locked at ${val}°C`, "fa-solid fa-check"), 800);
                 
-                // Instantly re-evaluate the alarm card locally so the user feels immediate feedback
                 const currentTemp = parseFloat(document.getElementById('temp').innerText);
                 if (currentTemp >= parseFloat(val)) {
                     document.getElementById('envCard').classList.add('alarm-card');
+                    // Voice feedback for an AC Alarm
+                    triggerVoice(`Target locked at ${parseFloat(val).toFixed(1)} degrees. Initiating cooling sequence.`, true);
                 } else {
                     document.getElementById('envCard').classList.remove('alarm-card');
+                    // THE FIX: Voice feedback for a normal, safe change
+                    triggerVoice(`Target locked at ${parseFloat(val).toFixed(1)} degrees. Environment stable.`, true);
                 }
             } 
             catch (error) { showToast("Failed to sync setting", "fa-solid fa-circle-xmark"); }
+        }
+        
+        // --- 🎙️ AI SPEECH RECOGNITION ENGINE ---
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition;
+        let isListening = false;
+
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.continuous = false; 
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+
+            recognition.onstart = function() {
+                isListening = true;
+                document.getElementById('micBtn').classList.add('listening');
+                showToast("Listening... Speak now.", "fa-solid fa-ear-listen");
+            };
+
+            recognition.onresult = function(event) {
+                const command = event.results[0][0].transcript.toLowerCase();
+                showToast(`Heard: "${command}"`, "fa-solid fa-comment-dots");
+                processVoiceCommand(command);
+            };
+
+            recognition.onerror = function(event) {
+                showToast("Voice recognition failed.", "fa-solid fa-circle-exclamation");
+                stopListening();
+            };
+
+            recognition.onend = function() {
+                stopListening();
+            };
+        }
+
+        function toggleListening() {
+            if (!SpeechRecognition) {
+                showToast("Voice commands not supported on this browser.", "fa-solid fa-triangle-exclamation");
+                return;
+            }
+            isListening ? recognition.stop() : recognition.start();
+        }
+
+        function stopListening() {
+            isListening = false;
+            document.getElementById('micBtn').classList.remove('listening');
+        }
+
+        function processVoiceCommand(command) {
+            if (command.includes("target") || command.includes("temperature") || command.includes("set to")) {
+                const match = command.match(/\d+/); 
+                if (match) {
+                    const temp = parseFloat(match[0]);
+                    
+                    if (temp >= 20 && temp <= 40) {
+                        document.getElementById('thresholdSlider').value = temp;
+                        updateThresholdDisplay(temp);
+                        pushThresholdToCloud(temp); // pushThresholdToCloud handles its own voice override if AC triggers
+                    } else {
+                        // OVERRIDE TRUE
+                        triggerVoice(`Temperature ${temp} is outside safe operating parameters.`, true);
+                    }
+                } else {
+                    triggerVoice("I heard you mention temperature, but I didn't catch a valid number.", true);
+                }
+            } else if (command.includes("status") || command.includes("report")) {
+                const currentTemp = document.getElementById('temp').innerText;
+                triggerVoice(`Current environment status. Temperature is ${currentTemp}. System is secure.`, true);
+            } else {
+                 triggerVoice("Command not recognized. Please specify a target temperature.", true);
+            }
         }
     </script>
 </body>
