@@ -63,6 +63,7 @@
         .lock-box input { 
             width: 100%; padding: 14px; margin: 20px 0; border-radius: 8px; border: 1px solid var(--card-border); 
             background: var(--input-bg); color: var(--text-main); text-align: center; font-family: monospace; letter-spacing: 2px; transition: 0.3s;
+            box-sizing: border-box;
         }
         .lock-box input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 10px var(--accent-glow); }
         .error-msg { color: var(--danger); font-size: 0.9rem; margin-top: 10px; display: none; font-weight: 500;}
@@ -107,7 +108,8 @@
         .pulse { width: 8px; height: 8px; background: var(--success); border-radius: 50%; box-shadow: 0 0 10px var(--success); animation: pulse-anim 1.5s infinite; }
         @keyframes pulse-anim { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(1.2); } 100% { opacity: 1; transform: scale(1); } }
 
-        .action-btn { background: var(--accent); color: #fff; border: none; padding: 14px 24px; border-radius: 8px; cursor: pointer; font-weight: 700; transition: 0.2s; width: 100%; text-transform: uppercase; letter-spacing: 1px; }
+        .action-btn { background: var(--accent); color: #fff; border: none; padding: 14px 24px; border-radius: 8px; cursor: pointer; font-weight: 700; transition: 0.2s; width: 100%; text-transform: uppercase; letter-spacing: 1px; box-sizing: border-box;
+        }
         .action-btn:hover { filter: brightness(1.1); box-shadow: 0 0 15px var(--accent-glow); }
         
         input[type=range] { -webkit-appearance: none; width: 100%; margin: 15px 0; background: transparent; cursor: pointer; }
@@ -152,7 +154,10 @@
 
         <div class="grid">
             <div class="card" style="grid-column: 1 / -1;">
-                <h2><i class="fa-solid fa-chart-area"></i> Live Climate Matrix</h2>
+                <h2 style="display: flex; justify-content: space-between; align-items: center;">
+                    <span><i class="fa-solid fa-chart-area"></i> Live Climate Matrix</span>
+                    <button onclick="exportToCSV()" style="background: var(--accent); color: #fff; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: bold; transition: 0.2s;"><i class="fa-solid fa-download"></i> Export CSV</button>
+                </h2>
                 <div class="chart-container"><canvas id="climateChart"></canvas></div>
             </div>
 
@@ -338,6 +343,40 @@
                 el.innerText = newValue;
             }
             prevData[oldTrackerKey] = newValue;
+        }
+
+        // --- 📊 DATA EXPORT ENGINE ---
+        function exportToCSV() {
+            if (timeLabels.length === 0) {
+                showToast("No telemetry data to export yet.", "fa-solid fa-triangle-exclamation");
+                return;
+            }
+            
+            showToast("Compiling telemetry data...", "fa-solid fa-file-export");
+            
+            // 1. Create the CSV Headers
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += "Timestamp,Temperature (°C),Humidity (%)\n";
+            
+            // 2. Loop through the arrays and format the rows
+            for (let i = 0; i < timeLabels.length; i++) {
+                csvContent += `${timeLabels[i]},${tempData[i]},${humData[i]}\n`;
+            }
+            
+            // 3. Create a hidden link and force the download
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            
+            // Generate a unique filename using the current date
+            const dateStr = new Date().toISOString().slice(0, 10);
+            link.setAttribute("download", `IBEMS_Telemetry_${dateStr}.csv`);
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            setTimeout(() => showToast("Export Complete", "fa-solid fa-check"), 1000);
         }
 
         function setupChart() {
